@@ -1,0 +1,116 @@
+name: Build Custom IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: '应用名称'
+        required: true
+      website_url:
+        description: '网页链接'
+        required: true
+      icon_path:
+        description: '图标文件路径'
+        required: true
+      request_id:
+        description: '请求ID'
+        required: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: 🎨 Prepare Icon
+        run: |
+          # 从仓库中复制图标
+          cp "${{ github.event.inputs.icon_path }}" icon.png
+          echo "✅ 图标已准备好: ${{ github.event.inputs.icon_path }}"
+      
+      - name: ✏️ Customize App
+        run: |
+          # 修改网页 URL
+          sed -i '' 's|let myTargetUrl = ".*"|let myTargetUrl = "${{ github.event.inputs.website_url }}"|' \
+            iOSWKWebViewAppTemplateCookiesWorkLikeACharm/ViewController.swift
+          
+          # 修改应用名称
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ github.event.inputs.app_name }}" \
+            iOSWKWebViewAppTemplateCookiesWorkLikeACharm/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleName ${{ github.event.inputs.app_name }}" \
+            iOSWKWebViewAppTemplateCookiesWorkLikeACharm/Info.plist
+          
+          echo "✅ 自定义完成: 应用名=${{ github.event.inputs.app_name }}, URL=${{ github.event.inputs.website_url }}"
+
+      - name: Build Xcode Project
+        run: |
+          PROJECT_FILE=$(find . -maxdepth 2 -name "*.xcodeproj" | head -n 1)
+          PROJECT_NAME=$(basename "$PROJECT_FILE" .xcodeproj)
+          SCHEME_NAME="$PROJECT_NAME"
+          
+          # 生成随机 Bundle ID，防止 SideStore 缓存冲突
+          RANDOM_ID="com.html2ipa.app.$(date +%s)"
+          
+          xcodebuild clean -project "$PROJECT_NAME.xcodeproj" -scheme "$SCHEME_NAME" -configuration Release
+          
+          xcodebuild build \
+            -project "$PROJECT_NAME.xcodeproj" \
+            -scheme "$SCHEME_NAME" \
+            -configuration Release \
+            -derivedDataPath build \
+            -sdk iphoneos \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            PRODUCT_BUNDLE_IDENTIFIER="$RANDOM_ID"
+
+      - name: 📦 Create IPA with Icons
+        run: |
+          # 1. 准备路径
+          RAW_APP_PATH=$(find build/Build/Products/Release-iphoneos -name "*.app" | head -n 1)
+          APP_NAME="${{ github.event.inputs.app_name }}"
+          REQUEST_ID="${{ github.event.inputs.request_id }}"
+          
+          mkdir Payload
+          cp -R "$RAW_APP_PATH" "Payload/${APP_NAME}.app"
+          
+          TARGET_DIR="Payload/${APP_NAME}.app"
+          SRC="icon.png"
+          
+          echo "💎 正在植入自定义图标..."
+          
+          # 2. 直接复制原图到所有可能的系统文件名
+          cp "$SRC" "$TARGET_DIR/AppIcon60x60@2x.png"
+          cp "$SRC" "$TARGET_DIR/AppIcon60x60@3x.png"
+          cp "$SRC" "$TARGET_DIR/AppIcon76x76@2x.png"
+          cp "$SRC" "$TARGET_DIR/AppIcon83.5x83.5@2x.png"
+          
+          # 通用兜底
+          cp "$SRC" "$TARGET_DIR/AppIcon.png"
+          cp "$SRC" "$TARGET_DIR/AppIcon@2x.png"
+          cp "$SRC" "$TARGET_DIR/AppIcon@3x.png"
+          cp "$SRC" "$TARGET_DIR/Icon.png"
+          cp "$SRC" "$TARGET_DIR/Icon@2x.png"
+          
+          # 3. 验证
+          ls -lh "$TARGET_DIR" | grep "png"
+
+          # 4. 打包 IPA
+          IPA_NAME="${APP_NAME}_${REQUEST_ID}.ipa"
+          zip -ry "$IPA_NAME" Payload
+          echo "IPA_NAME=$IPA_NAME" >> $GITHUB_ENV
+          echo "✅ IPA 生成完成: $IPA_NAME"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ github.event.inputs.app_name }}_${{ github.event.inputs.request_id }}"
+          path: ./*.ipa
+          retention-days: 7
