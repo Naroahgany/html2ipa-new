@@ -106,16 +106,56 @@ git push origin main
 
 ---
 
+## ⏰ 隔很久后如何重新启动？
+
+Render 免费层的 Web Service 在 **15 分钟无请求后会自动休眠**。隔了几天后重新使用时：
+
+### 启动方法（二选一）
+
+**方法一：直接打开网页（推荐）**
+1. 在浏览器中打开你的 Render 服务 URL（如 `https://ipa-builder.onrender.com`）
+2. 页面会显示 **"⏳ 服务正在启动中..."** 的等待提示
+3. 等待约 **30-60 秒**，页面会自动加载完成
+4. 看到表单页面后即可正常使用
+
+**方法二：手动唤醒后再使用**
+1. 先在浏览器访问 `https://你的服务.onrender.com/api/health`
+2. 等待直到看到 JSON 响应 `{"status":"ok",...}`
+3. 然后打开主页面使用
+
+### 💡 想要避免休眠？（可选）
+
+使用免费的 [UptimeRobot](https://uptimerobot.com/) 服务每 14 分钟自动 ping 你的服务：
+1. 注册 UptimeRobot 账号
+2. 添加 HTTP(s) 监控：`https://你的服务.onrender.com/api/health`
+3. 间隔设为 5 分钟
+4. 这样服务永远不会休眠
+
+> ⚠️ 注意：Render 免费层每月有 750 小时限制。如果用 UptimeRobot 保活，约可运行 31 天（刚好够一个月）。
+
+---
+
 ## ⚠️ 注意事项
 
 1. **GitHub Actions 免费额度**：公开仓库完全免费，私有仓库每月 2000 分钟
-2. **Render 免费层**：后端每月 750 小时免费，静态网站完全免费
+2. **Render 免费层**：Web Service 每月 750 小时免费，15 分钟无请求后休眠
 3. **IPA 签名**：生成的 IPA 未签名，需要用户自行使用工具签名
 4. **图标尺寸**：建议上传 1024x1024 正方形 PNG 图片
+5. **GitHub Token 有效期**：Fine-grained Token 最长有效期 1 年，过期后需重新生成并更新 Render 环境变量
 
 ---
 
 ## 🔧 故障排查
+
+### 页面打不开 / 一直加载
+- 正常现象！Render 免费层休眠后首次访问需等待 30-60 秒冷启动
+- 如果超过 2 分钟仍无响应，登录 [Render Dashboard](https://dashboard.render.com/) 检查服务状态
+- 确认服务没有被暂停（Suspended）
+
+### 页面打开了但提交无反应
+- 检查页面顶部的连接状态指示器是否显示绿色 ✅
+- 打开浏览器开发者工具（F12）→ Console 标签，查看 `[IPA Builder]` 开头的日志
+- 如果显示 `Failed to fetch`，说明后端 API 不可达
 
 ### 构建失败
 - 检查 GitHub Actions 日志
@@ -123,7 +163,7 @@ git push origin main
 
 ### API 请求失败
 - 检查 Render 环境变量是否正确
-- 确认 GitHub Token 权限足够
+- 确认 GitHub Token 权限足够且未过期
 
 ### 下载失败
 - GitHub Artifacts 有效期为 7 天
@@ -134,6 +174,6 @@ git push origin main
 ## 📝 技术栈
 
 - **前端**: 原生 HTML/CSS/JavaScript
-- **后端**: Node.js + Express
+- **后端**: Node.js + Express（同时提供前端静态文件）
 - **构建**: GitHub Actions (macOS runner)
-- **托管**: Render (免费层)
+- **托管**: Render (免费层，前后端合并为单一 Web Service)
