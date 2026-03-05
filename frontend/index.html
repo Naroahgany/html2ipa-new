@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IPA 生成器 - 将网页转换为 iOS App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📱 HTML 转 IPA 生成器</h1>
+      <p class="subtitle">将任何网页打包成 iOS App，无需 Mac 电脑</p>
+      <div id="connectionStatus" class="connection-status disconnected">🔄 正在连接后端...</div>
+    </header>
+    
+    <main>
+      <form id="build-form">
+        <div class="form-group">
+          <label for="appName">
+            <span class="icon">📝</span> 应用名称
+          </label>
+          <input 
+            type="text" 
+            id="appName" 
+            placeholder="例如：我的App" 
+            required
+            maxlength="30"
+          >
+          <small>将显示在 iPhone 主屏幕上</small>
+        </div>
+        
+        <div class="form-group">
+          <label for="websiteUrl">
+            <span class="icon">🔗</span> 网页链接
+          </label>
+          <input 
+            type="url" 
+            id="websiteUrl" 
+            placeholder="https://example.com" 
+            required
+          >
+          <small>App 启动后将加载此网页</small>
+        </div>
+        
+        <div class="form-group">
+          <label for="iconFile">
+            <span class="icon">🎨</span> 应用图标
+          </label>
+          <div class="icon-upload-area" id="iconUploadArea">
+            <input
+              type="file"
+              id="iconFile"
+              accept="image/png,image/jpeg,.png,.PNG,.jpg,.JPG,.jpeg,.JPEG"
+            >
+            <div class="upload-placeholder" id="uploadPlaceholder">
+              <span class="upload-icon">📤</span>
+              <span>点击上传图片（将自动弹出裁剪工具）</span>
+            </div>
+            <div id="croppedIconContainer" class="cropped-icon-container" style="display:none;">
+              <img id="croppedIconPreview" class="icon-preview">
+              <button type="button" id="recropBtn" class="recrop-btn">✂️ 重新裁剪</button>
+            </div>
+          </div>
+          <small>上传后可裁剪为正方形图标</small>
+        </div>
+        
+        <button type="submit" id="submitBtn" class="submit-btn">
+          <span class="btn-icon">🚀</span> 生成 IPA
+        </button>
+      </form>
+      
+      <div id="status" class="status-container" style="display:none;">
+        <div class="spinner"></div>
+        <p id="statusText" class="status-text">正在启动构建...</p>
+        <p class="status-hint">GitHub Actions 正在编译，通常需要 2-3 分钟</p>
+      </div>
+      
+      <div id="result" class="result-container" style="display:none;">
+        <div class="success-icon">✅</div>
+        <h2>生成成功！</h2>
+        <p class="result-info">你的 IPA 文件已准备就绪</p>
+        <a id="downloadLink" class="download-btn" download>
+          <span class="btn-icon">📥</span> 下载 IPA
+        </a>
+        <div class="install-hint">
+          <h3>📋 安装说明</h3>
+          <ol>
+            <li>下载的是 .zip 文件，解压后得到 .ipa 文件</li>
+            <li>使用 <a href="https://altstore.io/" target="_blank">AltStore</a> 或 <a href="https://sideloadly.io/" target="_blank">Sideloadly</a> 签名安装</li>
+            <li>或使用 Apple 免费开发者账号 (7天有效期)</li>
+          </ol>
+        </div>
+        <button id="resetBtn" class="reset-btn">🔄 生成另一个</button>
+      </div>
+      
+      <div id="error" class="error-container" style="display:none;">
+        <div class="error-icon">❌</div>
+        <h2>生成失败</h2>
+        <p id="errorText" class="error-text"></p>
+        <button id="retryBtn" class="retry-btn">🔄 重试</button>
+      </div>
+    </main>
+    
+    <footer>
+      <p>Powered by GitHub Actions | 
+        <a href="https://github.com" target="_blank">查看源码</a>
+      </p>
+    </footer>
+  </div>
+  
+  <!-- 图片裁剪模态框 -->
+  <div id="cropModal" class="crop-modal" style="display:none;">
+    <div class="crop-modal-content">
+      <div class="crop-modal-header">
+        <h2>✂️ 裁剪图标</h2>
+        <p>拖动选择框调整裁剪区域，生成正方形图标</p>
+      </div>
+      
+      <div class="crop-container">
+        <div class="crop-image-wrapper" id="cropImageWrapper">
+          <img id="cropImage" class="crop-image">
+          <div id="cropBox" class="crop-box">
+            <div class="crop-box-corner top-left"></div>
+            <div class="crop-box-corner top-right"></div>
+            <div class="crop-box-corner bottom-left"></div>
+            <div class="crop-box-corner bottom-right"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="crop-preview-section">
+        <p>预览效果：</p>
+        <canvas id="cropPreviewCanvas" width="120" height="120"></canvas>
+      </div>
+      
+      <div class="crop-modal-actions">
+        <button type="button" id="cropCancelBtn" class="crop-cancel-btn">取消</button>
+        <button type="button" id="cropConfirmBtn" class="crop-confirm-btn">✅ 确认裁剪</button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="script.js"></script>
+</body>
+</html>
